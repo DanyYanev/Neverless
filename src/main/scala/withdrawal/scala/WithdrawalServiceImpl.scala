@@ -3,24 +3,22 @@ package withdrawal.scala
 import withdrawal.java.{WithdrawalService => JavaWithdrawalService}
 import withdrawal.java.WithdrawalService.{Address => JavaAddress, WithdrawalId => JavaWithdrawalId}
 
-import java.util.UUID
-
-
 class WithdrawalServiceImpl(javaService: JavaWithdrawalService) extends WithdrawalService {
-  def requestWithdrawal(id: UUID, address: String, amount: Int): Either[String, Unit] = {
+  def requestWithdrawal(id: WithdrawalId, address: Address, amount: Int): Either[WithdrawalError, WithdrawalId] = {
     try {
-      javaService.requestWithdrawal(new JavaWithdrawalId(id), new JavaAddress(address), amount)
-      Right(())
+      javaService.requestWithdrawal(new JavaWithdrawalId(id.value), new JavaAddress(address.value), amount)
+      Right(id)
     } catch {
-      case e: IllegalArgumentException => Left(e.getMessage)
+      case IllegalArgumentException => Left(IdempotencyViolation)
     }
   }
 
-  def getWithdrawalStatus(id: UUID): Either[String, String] = {
+  def getWithdrawalStatus(id: WithdrawalId): Either[WithdrawalError, WithdrawalStatus] = {
     try {
-      Right(javaService.getRequestState(new JavaWithdrawalId(id))).map(_.toString)
+      val status = javaService.getRequestState(new JavaWithdrawalId(id.value))
+      WithdrawalStatusConverter.convert(status)
     } catch {
-      case e: IllegalArgumentException => Left(e.getMessage)
+      case IllegalArgumentException => Left(NotFound)
     }
   }
 }
