@@ -1,6 +1,6 @@
 package withdrawal.scala
 
-import core.amount.Amount
+import core.{Address, Amount}
 import withdrawal.java.{WithdrawalService => JavaWithdrawalService}
 import withdrawal.java.WithdrawalService.{Address => JavaAddress, WithdrawalId => JavaWithdrawalId}
 

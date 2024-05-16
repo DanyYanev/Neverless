@@ -1,6 +1,6 @@
 package withdrawal.java;
 
-import core.amount.Amount;
+import core.Amount;
 
 import java.util.UUID;
 
