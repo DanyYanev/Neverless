@@ -2,6 +2,8 @@ ThisBuild / version := "0.1.0-SNAPSHOT"
 
 ThisBuild / scalaVersion := "2.13.14"
 
+Compile / unmanagedSourceDirectories += baseDirectory.value / "src" / "main" / "java"
+
 lazy val root = (project in file("."))
   .settings(
     name := "task"
