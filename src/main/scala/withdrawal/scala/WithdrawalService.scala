@@ -1,7 +1,8 @@
 package withdrawal.scala
 
-import java.util.UUID
+import core.amount.Amount
 
+import java.util.UUID
 import withdrawal.java.WithdrawalService.{WithdrawalState => JavaWithdrawalState}
 
 class WithdrawalId private(val value: UUID) extends AnyVal
@@ -15,7 +16,7 @@ case class UnknownStatus(status: JavaWithdrawalState) extends WithdrawalError
 
 
 trait WithdrawalService {
-  def requestWithdrawal(id: WithdrawalId, address: Address, amount: Int): Either[WithdrawalError, WithdrawalId]
+  def requestWithdrawal(id: WithdrawalId, address: Address, amount: Amount): Either[WithdrawalError, WithdrawalId]
   def getWithdrawalStatus(id: WithdrawalId): Either[WithdrawalError, WithdrawalStatus]
 }
 

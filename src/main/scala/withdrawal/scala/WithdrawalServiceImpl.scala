@@ -1,10 +1,11 @@
 package withdrawal.scala
 
+import core.amount.Amount
 import withdrawal.java.{WithdrawalService => JavaWithdrawalService}
 import withdrawal.java.WithdrawalService.{Address => JavaAddress, WithdrawalId => JavaWithdrawalId}
 
 class WithdrawalServiceImpl(javaService: JavaWithdrawalService) extends WithdrawalService {
-  def requestWithdrawal(id: WithdrawalId, address: Address, amount: Int): Either[WithdrawalError, WithdrawalId] = {
+  def requestWithdrawal(id: WithdrawalId, address: Address, amount: Amount): Either[WithdrawalError, WithdrawalId] = {
     try {
       javaService.requestWithdrawal(new JavaWithdrawalId(id.value), new JavaAddress(address.value), amount)
       Right(id)

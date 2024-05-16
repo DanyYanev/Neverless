@@ -1,5 +1,7 @@
 package withdrawal.java;
 
+import core.amount.Amount;
+
 import java.util.UUID;
 
 public interface WithdrawalService {
@@ -10,7 +12,7 @@ public interface WithdrawalService {
      * @param amount - an amount to withdraw (please replace T with type you want to use)
      * @throws IllegalArgumentException in case there's different address or amount for given id
      */
-    void requestWithdrawal(WithdrawalId id, Address address, Integer amount); // Please substitute T with prefered type
+    void requestWithdrawal(WithdrawalId id, Address address, Amount amount);
 
     /**
      * Return current state of withdrawal
