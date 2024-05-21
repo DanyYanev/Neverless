@@ -10,7 +10,7 @@ class WithdrawalServiceImpl(javaService: JavaWithdrawalService) extends Withdraw
       javaService.requestWithdrawal(new JavaWithdrawalId(id.value), new JavaAddress(address.value), amount)
       Right(id)
     } catch {
-      case IllegalArgumentException => Left(IdempotencyViolation)
+      case _: IllegalArgumentException => Left(IdempotencyViolation)
     }
   }
 
@@ -19,7 +19,7 @@ class WithdrawalServiceImpl(javaService: JavaWithdrawalService) extends Withdraw
       val status = javaService.getRequestState(new JavaWithdrawalId(id.value))
       WithdrawalStatusConverter.convert(status)
     } catch {
-      case IllegalArgumentException => Left(NotFound)
+      case _: IllegalArgumentException => Left(NotFound)
     }
   }
 }
