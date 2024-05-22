@@ -1,5 +1,8 @@
 package transfer.storage
-import core.AccountId
+
+import account.AccountId
+import core.Amount
+import transfer.AccountNotFound
 
 import java.util.concurrent.ConcurrentHashMap
 
@@ -28,4 +31,20 @@ class AccountStorageImpl extends AccountStorage {
       Left(ConcurrentModificationError)
     }
   }
+
+  override def addBalance(accountId: AccountId, amount: Amount): Either[AccountNotFound, Amount] =
+    try {
+      val updatedAccount = accounts.compute(accountId, (_, currentAccount) => {
+        Option(currentAccount) match {
+          case Some(currentAccount) =>
+            currentAccount.copy(balance = currentAccount.balance + amount)
+          case None =>
+            throw new NoSuchElementException
+        }
+      })
+      Right(updatedAccount.balance)
+    } catch {
+      case _: NoSuchElementException =>
+        Left(AccountNotFound(accountId))
+    }
 }
