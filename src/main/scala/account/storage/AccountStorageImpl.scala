@@ -6,9 +6,9 @@ import java.util.concurrent.ConcurrentHashMap
 class AccountStorageImpl extends AccountStorage {
   private val accounts: ConcurrentHashMap[AccountId, Account] = new ConcurrentHashMap[AccountId, Account]()
 
-  override def GetAccount(accountId: AccountId): Option[Account] = Option(accounts.get(accountId))
+  override def getAccount(accountId: AccountId): Option[Account] = Option(accounts.get(accountId))
 
-  override def ConditionalPutAccount(account: Account): Either[UpdateError, Unit] = {
+  override def conditionalPutAccount(account: Account): Either[UpdateError, Unit] = {
     val newValue = accounts.compute(account.id, (_, currentAccount) => {
       Option(currentAccount) match {
         case None =>

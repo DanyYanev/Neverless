@@ -8,6 +8,6 @@ case object ConcurrentModificationError extends UpdateError
 case class Account(id: AccountId, balance: Amount, version: Int = 0)
 
 trait AccountStorage {
-  def GetAccount(accountId: AccountId): Option[Account]
-  def ConditionalPutAccount(account: Account): Either[UpdateError, Unit]
+  def getAccount(accountId: AccountId): Option[Account]
+  def conditionalPutAccount(account: Account): Either[UpdateError, Unit]
 }
