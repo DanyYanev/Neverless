@@ -1,17 +1,21 @@
 package transfer
 
-import core.{AccountId, Address, Amount}
-import withdrawal.scala.{WithdrawalError}
+import account.AccountId
+import core.{Address, Amount}
+import transfer.storage.{Transfer, Withdrawal}
+import withdrawal.scala.WithdrawalError
 
 import java.util.UUID
 
 case class TransferId(value: UUID) extends AnyVal
 
 sealed trait TransferError
-case class WithdrawalFailure(error: WithdrawalError) extends TransferError
 case object InsufficientFunds extends TransferError
+case class AccountNotFound(id: AccountId) extends TransferError
+case object IdempotencyViolation extends TransferError
+case object TransferAlreadyExists extends TransferError
 
 trait TransferService {
-  def requestTransfer(id: TransferId, from: AccountId, to: AccountId, amount: Amount): Either[TransferError, TransferId]
-  def requestWithdrawal(id: TransferId, from: AccountId, to: Address, amount: Amount): Either[TransferError, TransferId]
+  def requestTransfer(transfer: Transfer): Either[TransferError, TransferId]
+  def requestWithdrawal(withdrawal: Withdrawal): Either[TransferError, TransferId]
 }

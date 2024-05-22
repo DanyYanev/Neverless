@@ -9,11 +9,16 @@ lazy val root = (project in file("."))
     name := "task"
   )
 
+enablePlugins(ScoverageSbtPlugin)
+
+coverageHighlighting := true
+
 libraryDependencies ++= Seq(
   "org.http4s" %% "http4s-blaze-server" % "0.23.12",
   "org.http4s" %% "http4s-circe" % "0.23.12",
   "org.http4s" %% "http4s-dsl" % "0.23.12",
   "io.circe" %% "circe-generic" % "0.14.1",
   "io.circe" %% "circe-literal" % "0.14.1",
-  "org.typelevel" %% "cats-effect" % "3.3.12"
+  "org.typelevel" %% "cats-effect" % "3.3.12",
+  "org.scalatest" %% "scalatest" % "3.2.9" % Test
 )
