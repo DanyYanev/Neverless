@@ -4,7 +4,7 @@ import core.AccountId
 import java.util.concurrent.ConcurrentHashMap
 
 class AccountStorageImpl extends AccountStorage {
-  private val accounts: ConcurrentHashMap[AccountId, Account] = new ConcurrentHashMap[AccountId, Account]()
+  private val accounts = new ConcurrentHashMap[AccountId, Account]()
 
   override def getAccount(accountId: AccountId): Option[Account] = Option(accounts.get(accountId))
 
