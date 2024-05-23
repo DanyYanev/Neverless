@@ -36,7 +36,7 @@ class TransferServiceImpl(withdrawalService: WithdrawalService, accountStorage: 
       Left(InsufficientFunds)
     } else {
       accountStorage.conditionalPutAccount(account.copy(balance = account.balance - amount)) match {
-        case Left(ConcurrentModificationError) => Left(IdempotencyViolation)
+        case Left(ConcurrentModificationError) => Left(ConcurrentModification)
         case Right(_) => Right(amount)
       }
     }

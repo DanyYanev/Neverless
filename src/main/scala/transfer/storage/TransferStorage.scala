@@ -12,7 +12,6 @@ sealed trait TransferStorageError
 
 case class TransferWithIdAlreadyExists(transfer: Transfer) extends TransferStorageError
 
-
 trait TransferStorage {
   def getTransfer(id: TransferId): Option[Transfer]
 

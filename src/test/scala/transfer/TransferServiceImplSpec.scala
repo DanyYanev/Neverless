@@ -1,16 +1,17 @@
 package transfer
 
+import org.scalamock.scalatest.MockFactory
 import account.AccountId
 import account.storage.AccountStorageStub
 import core.Amount
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import transfer.storage.{Account, Transfer, TransferStorageStub}
+import transfer.storage.{Account, AccountStorage, ConcurrentModificationError, Transfer, TransferStorage, TransferStorageStub}
+import withdrawal.scala.WithdrawalService
 
 import java.util.UUID
 
-class TransferServiceImplSpec extends AnyWordSpec with Matchers {
+class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory {
   "TransferServiceImpl" when {
     "requestTransfer is called" should {
       "successfully transfer amounts between accounts" in {
@@ -131,6 +132,27 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers {
         accountStorage.getAccount(from).get.balance mustBe Amount(100)
         accountStorage.getAccount(to).get.balance mustBe Amount(100)
         transferStorage.getTransfer(transfer.id).get.amount mustBe Amount(50)
+      }
+      "fail if from account has been modified concurrently" in {
+        val accountStorage = mock[AccountStorage]
+        val transferStorage = new TransferStorageStub()
+        val transferService = new TransferServiceImpl(mock[WithdrawalService], accountStorage, transferStorage)
+
+        val from = Account(newAccountId, Amount(100), 0)
+        val to = Account(newAccountId, Amount(100), 0)
+        val transfer = Transfer(newTransferId, from.id, to.id, Amount(50))
+
+        (accountStorage.getAccount _).expects(from.id).returning(Some(from)).once()
+        (accountStorage.getAccount _).expects(to.id).returning(Some(to)).once()
+        (accountStorage.conditionalPutAccount _)
+          .expects(from.copy(balance = from.balance - transfer.amount))
+          .returning(Left(ConcurrentModificationError))
+          .once()
+
+        val result = transferService.requestTransfer(transfer)
+
+        result mustBe Left(ConcurrentModification)
+        transferStorage.getTransfer(transfer.id) mustBe None
       }
     }
   }
