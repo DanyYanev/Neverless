@@ -1,6 +1,6 @@
 package transfer.storage
 
-import transfer.TransferId
+import transfer.{Transfer, TransferId}
 
 import java.util.concurrent.ConcurrentHashMap
 
@@ -12,7 +12,7 @@ class TransferStorageImpl extends TransferStorage {
     Option(transfers.get(id))
   }
 
-  override def createTransfer(transfer: Transfer): Either[TransferStorageError, TransferId] = {
+  override def createTransfer(transfer: Transfer): Either[TransferWithIdAlreadyExists, TransferId] = {
     getTransfer(transfer.id) match {
       case Some(existingTransfer) => Left(TransferWithIdAlreadyExists(existingTransfer))
       case None =>

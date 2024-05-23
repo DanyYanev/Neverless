@@ -2,15 +2,12 @@ package transfer.storage
 
 import account.AccountId
 import core.{Address, Amount}
-import transfer.TransferId
+import transfer.{Transfer, TransferId}
 
-case class Transfer(id: TransferId, from: AccountId, to: AccountId, amount: Amount)
-
-case class Withdrawal(id: TransferId, from: AccountId, to: Address, amount: Amount)
-
+//This abstraction is technically not needed, but in production its very common to have more than one error
 sealed trait TransferStorageError
 
-case class TransferWithIdAlreadyExists(transfer: Transfer) extends TransferStorageError
+case class TransferWithIdAlreadyExists(existingTransfer: Transfer) extends TransferStorageError
 
 trait TransferStorage {
   def getTransfer(id: TransferId): Option[Transfer]

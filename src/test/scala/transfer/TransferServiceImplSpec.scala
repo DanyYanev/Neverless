@@ -1,12 +1,12 @@
 package transfer
 
 import org.scalamock.scalatest.MockFactory
-import account.AccountId
-import account.storage.AccountStorageStub
+import account.{Account, AccountId}
+import account.storage.{AccountNotFound, AccountStorage, AccountStorageStub, ConcurrentModification}
 import core.Amount
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import transfer.storage.{Account, AccountStorage, ConcurrentModificationError, Transfer, TransferStorage, TransferStorageStub}
+import transfer.storage.TransferStorageStub
 import withdrawal.scala.WithdrawalService
 
 import java.util.UUID
@@ -21,18 +21,16 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
           from -> Account(from, Amount(100)),
           to -> Account(to, Amount(100))
         ))
-
+        
         val transferStorage = new TransferStorageStub(Map.empty)
-
         val transferService = new TransferServiceImpl(null, accountStorage, transferStorage)
-
 
         val transfer = Transfer(newTransferId, from, to, Amount(50))
         val result = transferService.requestTransfer(transfer)
 
         result mustBe Right(transfer.id)
-        accountStorage.getAccount(from).get.balance mustBe Amount(50)
-        accountStorage.getAccount(to).get.balance mustBe Amount(150)
+        accountStorage.getAccount(from).map(_.balance) mustBe Right(Amount(50))
+        accountStorage.getAccount(to).map(_.balance) mustBe Right(Amount(150))
         transferStorage.getTransfer(transfer.id) mustBe Some(transfer)
       }
       "fail if the from account does not exist" in {
@@ -48,8 +46,8 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val transfer = Transfer(newTransferId, from, to, Amount(50))
         val result = transferService.requestTransfer(transfer)
 
-        result mustBe Left(AccountNotFound(from))
-        accountStorage.getAccount(to).get.balance mustBe Amount(100)
+        result mustBe Left(AccountStorageFault(AccountNotFound(from)))
+        accountStorage.getAccount(to).map(_.balance) mustBe Right(Amount(100))
         transferStorage.getTransfer(transfer.id) mustBe None
       }
       "fail if the to account does not exist" in {
@@ -65,8 +63,8 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val transfer = Transfer(newTransferId, from, to, Amount(50))
         val result = transferService.requestTransfer(transfer)
 
-        result mustBe Left(AccountNotFound(to))
-        accountStorage.getAccount(from).get.balance mustBe Amount(100)
+        result mustBe Left(AccountStorageFault(AccountNotFound(to)))
+        accountStorage.getAccount(from).map(_.balance) mustBe Right(Amount(100))
         transferStorage.getTransfer(transfer.id) mustBe None
       }
       "fail if the from account has insufficient funds" in {
@@ -84,8 +82,8 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val result = transferService.requestTransfer(transfer)
 
         result mustBe Left(InsufficientFunds)
-        accountStorage.getAccount(from).get.balance mustBe Amount(100)
-        accountStorage.getAccount(to).get.balance mustBe Amount(100)
+        accountStorage.getAccount(from).map(_.balance) mustBe Right(Amount(100))
+        accountStorage.getAccount(to).map(_.balance) mustBe Right(Amount(100))
         transferStorage.getTransfer(transfer.id) mustBe None
       }
       "succeed if transfer already exists without changing the balances" in {
@@ -106,8 +104,8 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val result = transferService.requestTransfer(transfer)
 
         result mustBe Right(transfer.id)
-        accountStorage.getAccount(from).get.balance mustBe Amount(100)
-        accountStorage.getAccount(to).get.balance mustBe Amount(100)
+        accountStorage.getAccount(from).map(_.balance) mustBe Right(Amount(100))
+        accountStorage.getAccount(to).map(_.balance) mustBe Right(Amount(100))
         transferStorage.getTransfer(transfer.id) mustBe Some(transfer)
       }
       "fail if transfer already exists but has wrong parameters" in {
@@ -129,8 +127,8 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val result = transferService.requestTransfer(sameTransferDifferentAmount)
 
         result mustBe Left(IdempotencyViolation)
-        accountStorage.getAccount(from).get.balance mustBe Amount(100)
-        accountStorage.getAccount(to).get.balance mustBe Amount(100)
+        accountStorage.getAccount(from).map(_.balance) mustBe Right(Amount(100))
+        accountStorage.getAccount(to).map(_.balance) mustBe Right(Amount(100))
         transferStorage.getTransfer(transfer.id).get.amount mustBe Amount(50)
       }
       "fail if from account has been modified concurrently" in {
@@ -142,16 +140,16 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val to = Account(newAccountId, Amount(100), 0)
         val transfer = Transfer(newTransferId, from.id, to.id, Amount(50))
 
-        (accountStorage.getAccount _).expects(from.id).returning(Some(from)).once()
-        (accountStorage.getAccount _).expects(to.id).returning(Some(to)).once()
+        (accountStorage.getAccount _).expects(from.id).returning(Right(from)).once()
+        (accountStorage.getAccount _).expects(to.id).returning(Right(to)).once()
         (accountStorage.conditionalPutAccount _)
           .expects(from.copy(balance = from.balance - transfer.amount))
-          .returning(Left(ConcurrentModificationError))
+          .returning(Left(ConcurrentModification(from.id)))
           .once()
 
         val result = transferService.requestTransfer(transfer)
 
-        result mustBe Left(ConcurrentModification)
+        result mustBe Left(AccountStorageFault(ConcurrentModification(from.id)))
         transferStorage.getTransfer(transfer.id) mustBe None
       }
     }

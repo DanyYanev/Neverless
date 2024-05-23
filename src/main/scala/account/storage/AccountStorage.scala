@@ -1,19 +1,20 @@
-package transfer.storage
+package account.storage
 
-import account.AccountId
+import account.{Account, AccountId}
 import core.Amount
-import transfer.AccountNotFound
 
-case class Account(id: AccountId, balance: Amount, version: Int = 0)
 
-sealed trait UpdateError
+sealed trait AccountStorageError
 
-case object ConcurrentModificationError extends UpdateError
+case class ConcurrentModification(id: AccountId) extends AccountStorageError
+
+case class AccountNotFound(id: AccountId) extends AccountStorageError
 
 trait AccountStorage {
-  def getAccount(accountId: AccountId): Option[Account]
+  //Its more common for this method to return Option[Account], but everywhere we use it, we wrap it anyway.
+  def getAccount(accountId: AccountId): Either[AccountNotFound, Account]
 
-  def conditionalPutAccount(account: Account): Either[UpdateError, Unit]
+  def conditionalPutAccount(account: Account): Either[ConcurrentModification, Unit]
 
   def addBalance(accountId: AccountId, amount: Amount): Either[AccountNotFound, Amount]
 }

@@ -1,14 +1,16 @@
 package transfer
 
+import account.Account
+import account.storage.{AccountNotFound, AccountStorage, ConcurrentModification}
 import core.Amount
 import transfer.storage._
 import withdrawal.scala.WithdrawalService
 
 class TransferServiceImpl(withdrawalService: WithdrawalService, accountStorage: AccountStorage, transferStorage: TransferStorage) extends TransferService {
   override def requestTransfer(transfer: Transfer): Either[TransferError, TransferId] = {
-    (for {
-      from <- accountStorage.getAccount(transfer.from).toRight(AccountNotFound(transfer.from))
-      to <- accountStorage.getAccount(transfer.to).toRight(AccountNotFound(transfer.to))
+    val result: Either[TransferError, TransferId] = for {
+      from <- accountStorage.getAccount(transfer.from).left.map(AccountStorageFault)
+      to <- accountStorage.getAccount(transfer.to).left.map(AccountStorageFault)
 
       reservedAmount <- reserveBalance(from, transfer.amount)
 
@@ -16,15 +18,17 @@ class TransferServiceImpl(withdrawalService: WithdrawalService, accountStorage: 
         case TransferWithIdAlreadyExists(existingTransfer) =>
           returnReservedBalance(from, reservedAmount)
           if (existingTransfer == transfer)
-            TransferAlreadyExists
+            TransferStorageFault(TransferWithIdAlreadyExists(existingTransfer))
           else
             IdempotencyViolation
       }
 
-      _ <- accountStorage.addBalance(to.id, reservedAmount).left.map(_ => AccountNotFound(transfer.to))
-    } yield transferId) match {
+      _ <- accountStorage.addBalance(to.id, reservedAmount).left.map(AccountStorageFault)
+    } yield transferId
+
+    result match {
       //Implementation of Idempotency
-      case Left(TransferAlreadyExists) => Right(transfer.id)
+      case Left(TransferStorageFault(TransferWithIdAlreadyExists(_))) => Right(transfer.id)
       case other => other
     }
   }
@@ -36,7 +40,7 @@ class TransferServiceImpl(withdrawalService: WithdrawalService, accountStorage: 
       Left(InsufficientFunds)
     } else {
       accountStorage.conditionalPutAccount(account.copy(balance = account.balance - amount)) match {
-        case Left(ConcurrentModificationError) => Left(ConcurrentModification)
+        case Left(error) => Left(AccountStorageFault(error))
         case Right(_) => Right(amount)
       }
     }

@@ -1,23 +1,28 @@
-package transfer.storage
+package account.storage
 
-import account.AccountId
+import account.{Account, AccountId}
 import core.Amount
-import transfer.AccountNotFound
 
 import java.util.concurrent.ConcurrentHashMap
 
 class AccountStorageImpl extends AccountStorage {
   private val accounts = new ConcurrentHashMap[AccountId, Account]()
 
-  override def getAccount(accountId: AccountId): Option[Account] = Option(accounts.get(accountId))
+  override def getAccount(accountId: AccountId): Either[AccountNotFound, Account] =
+    Option(accounts.get(accountId)) match {
+      case Some(account) =>
+        Right(account)
+      case None =>
+        Left(AccountNotFound(accountId))
+    }
 
-  override def conditionalPutAccount(account: Account): Either[UpdateError, Unit] = {
+  override def conditionalPutAccount(account: Account): Either[ConcurrentModification, Unit] = {
     val newValue = accounts.compute(account.id, (_, currentAccount) => {
       Option(currentAccount) match {
         case None =>
-            account
+          account
         case Some(currentAccount) if currentAccount.version == account.version =>
-            account.copy(version = account.version + 1)
+          account.copy(version = account.version + 1)
         case Some(currentAccount) =>
           currentAccount
       }
@@ -25,10 +30,10 @@ class AccountStorageImpl extends AccountStorage {
 
     val expectedValue = account.copy(version = account.version + 1)
 
-    if(newValue == expectedValue) {
+    if (newValue == expectedValue) {
       Right(())
     } else {
-      Left(ConcurrentModificationError)
+      Left(ConcurrentModification(account.id))
     }
   }
 

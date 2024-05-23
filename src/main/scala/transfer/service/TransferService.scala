@@ -1,8 +1,9 @@
 package transfer
 
 import account.AccountId
+import account.storage.AccountStorageError
 import core.{Address, Amount}
-import transfer.storage.{Transfer, Withdrawal}
+import transfer.storage.TransferStorageError
 import withdrawal.scala.WithdrawalError
 
 import java.util.UUID
@@ -13,13 +14,11 @@ sealed trait TransferError
 
 case object InsufficientFunds extends TransferError
 
-case class AccountNotFound(id: AccountId) extends TransferError
+case class TransferStorageFault(err: TransferStorageError) extends TransferError
 
-case object ConcurrentModification extends TransferError
+case class AccountStorageFault(err: AccountStorageError) extends TransferError
 
 case object IdempotencyViolation extends TransferError
-
-case object TransferAlreadyExists extends TransferError
 
 trait TransferService {
   def requestTransfer(transfer: Transfer): Either[TransferError, TransferId]
