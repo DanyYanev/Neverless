@@ -1,3 +1,3 @@
 package core
 
-class Address private(val value: String) extends AnyVal
+case class Address(value: String) extends AnyVal

@@ -1,12 +1,11 @@
 package transaction.service
 
+import account.AccountId
 import account.storage.AccountStorageError
-import transaction.{Internal, Withdrawal}
+import core.{Address, Amount}
 import transaction.storage.TransactionStorageError
+import transaction.{Internal, TransactionId}
 
-import java.util.UUID
-
-case class TransactionId(value: UUID) extends AnyVal
 
 sealed trait TransactionError
 
@@ -18,8 +17,10 @@ case class AccountStorageFault(err: AccountStorageError) extends TransactionErro
 
 case object IdempotencyViolation extends TransactionError
 
+case class WithdrawalRequest(id: TransactionId, from: AccountId, to: Address, amount: Amount)
+
 trait TransactionService {
   def requestTransaction(transaction: Internal): Either[TransactionError, TransactionId]
 
-  def requestWithdrawal(withdrawal: Withdrawal): Either[TransactionError, TransactionId]
+  def requestWithdrawal(withdrawal: WithdrawalRequest): Either[TransactionError, TransactionId]
 }

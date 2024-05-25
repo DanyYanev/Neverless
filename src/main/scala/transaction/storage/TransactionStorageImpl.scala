@@ -1,7 +1,6 @@
 package transaction.storage
 
-import transaction.Transaction
-import transaction.service.TransactionId
+import transaction.{Transaction, TransactionId}
 
 import java.util.concurrent.ConcurrentHashMap
 

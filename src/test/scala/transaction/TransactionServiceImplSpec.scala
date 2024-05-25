@@ -3,12 +3,13 @@ package transaction
 import org.scalamock.scalatest.MockFactory
 import account.{Account, AccountId}
 import account.storage.{AccountNotFound, AccountStorage, AccountStorageStub, ConcurrentModification}
-import core.Amount
+import core.{Address, Amount}
+import org.scalamock.matchers.ArgCapture.CaptureOne
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionId, TransactionServiceImpl}
+import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionServiceImpl, WithdrawalRequest}
 import transaction.storage.TransactionStorageStub
-import withdrawal.scala.WithdrawalService
+import withdrawal.scala.{WithdrawalId, WithdrawalService}
 
 import java.util.UUID
 
@@ -154,9 +155,136 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         transactionStorage.getTransaction(transaction.id) mustBe None
       }
     }
+    "requestWithdrawal is called" should {
+      "successfully withdraw amounts from an account" in {
+        val from = Account(newAccountId, Amount(100))
+        val accountStorage = new AccountStorageStub(Map(
+          from.id -> from,
+        ))
+
+        val transactionStorage = new TransactionStorageStub(Map.empty)
+        val withdrawalService = mock[WithdrawalService]
+        val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
+
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50))
+        val capturedWithdrawalId = CaptureOne[WithdrawalId]()
+
+        (withdrawalService.requestWithdrawal _)
+          .expects(
+            capture(capturedWithdrawalId),
+            Address("to"),
+            Amount(50)
+          )
+          .returning(Right(WithdrawalId(UUID.randomUUID())))
+          .once()
+
+        val result = transactionService.requestWithdrawal(withdrawal)
+
+        result mustBe Right(withdrawal.id)
+        accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(50))
+        val transaction = transactionStorage.getTransaction(withdrawal.id).get
+        val expectedWithdrawalId = capturedWithdrawalId.value
+        transaction must matchPattern {
+          case Withdrawal(withdrawal.id, `expectedWithdrawalId`, withdrawal.from, withdrawal.to, Amount(50)) =>
+        }
+      }
+      "fail if the account does not exist" in {
+        val accountStorage = new AccountStorageStub(Map.empty)
+        val transactionStorage = new TransactionStorageStub(Map.empty)
+        val transactionService = new TransactionServiceImpl(mock[WithdrawalService], accountStorage, transactionStorage)
+
+        val from = newAccountId
+        val withdrawal = WithdrawalRequest(newTransactionId, from, Address("to"), Amount(50))
+
+        val result = transactionService.requestWithdrawal(withdrawal)
+
+        result mustBe Left(AccountStorageFault(AccountNotFound(from)))
+        transactionStorage.getTransaction(withdrawal.id) mustBe None
+      }
+      "fail if the account has insufficient funds" in {
+        val from = Account(newAccountId, Amount(100))
+        val accountStorage = new AccountStorageStub(Map(
+          from.id -> from,
+        ))
+
+        val transactionStorage = new TransactionStorageStub(Map.empty)
+        val withdrawalService = mock[WithdrawalService]
+        val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
+
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(150))
+
+        val result = transactionService.requestWithdrawal(withdrawal)
+
+        result mustBe Left(InsufficientFunds)
+        accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
+        transactionStorage.getTransaction(withdrawal.id) mustBe None
+      }
+      "fail if the account has been modified concurrently" in {
+        val accountStorage = mock[AccountStorage]
+        val transactionStorage = new TransactionStorageStub()
+        val withdrawalService = mock[WithdrawalService]
+        val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
+
+        val from = Account(newAccountId, Amount(100), 0)
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50))
+
+        (accountStorage.getAccount _).expects(from.id).returning(Right(from)).once()
+        (accountStorage.conditionalPutAccount _)
+          .expects(from.copy(balance = from.balance - withdrawal.amount))
+          .returning(Left(ConcurrentModification(from.id)))
+          .once()
+
+        val result = transactionService.requestWithdrawal(withdrawal)
+
+        result mustBe Left(AccountStorageFault(ConcurrentModification(from.id)))
+        transactionStorage.getTransaction(withdrawal.id) mustBe None
+      }
+      "succeed if withdrawal already exists" in {
+        val from = Account(newAccountId, Amount(100))
+        val accountStorage = new AccountStorageStub(Map(
+          from.id -> from,
+        ))
+
+        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, from.id, Address("to"), Amount(50))
+        val transactionStorage = new TransactionStorageStub(Map(
+          withdrawal.id -> withdrawal
+        ))
+
+        val withdrawalService = mock[WithdrawalService]
+        val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
+
+        val result = transactionService.requestWithdrawal(WithdrawalRequest(withdrawal.id, withdrawal.from, withdrawal.to, withdrawal.amount))
+
+        result mustBe Right(withdrawal.id)
+        accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
+        transactionStorage.getTransaction(withdrawal.id) mustBe Some(withdrawal)
+      }
+      "fail if withdrawal already exists but has wrong parameters" in {
+        val from = Account(newAccountId, Amount(100))
+        val accountStorage = new AccountStorageStub(Map(
+          from.id -> from,
+        ))
+
+        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, from.id, Address("to"), Amount(50))
+        val transactionStorage = new TransactionStorageStub(Map(
+          withdrawal.id -> withdrawal
+        ))
+
+        val withdrawalService = mock[WithdrawalService]
+        val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
+
+        val result = transactionService.requestWithdrawal(WithdrawalRequest(withdrawal.id, withdrawal.from, withdrawal.to, Amount(100)))
+
+        result mustBe Left(IdempotencyViolation)
+        accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
+        transactionStorage.getTransaction(withdrawal.id).get.amount mustBe Amount(50)
+      }
+    }
   }
 
   def newAccountId: AccountId = AccountId(UUID.randomUUID())
 
   def newTransactionId: TransactionId = TransactionId(UUID.randomUUID())
+
+  def newWithdrawalId: WithdrawalId = WithdrawalId(UUID.randomUUID())
 }

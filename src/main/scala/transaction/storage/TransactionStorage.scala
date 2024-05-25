@@ -1,7 +1,6 @@
 package transaction.storage
 
-import transaction.service.TransactionId
-import transaction.Transaction
+import transaction.{Transaction, TransactionId}
 
 //This abstraction is technically not needed, but in production its very common to have more than one error
 sealed trait TransactionStorageError
@@ -14,5 +13,5 @@ case class TransactionWithIdAlreadyExists(existingTransaction: Transaction) exte
 trait TransactionStorage {
   def getTransaction(id: TransactionId): Option[Transaction]
 
-  def createTransaction(transaction: Transaction): Either[TransactionStorageError, TransactionId]
+  def createTransaction(transaction: Transaction): Either[TransactionWithIdAlreadyExists, TransactionId]
 }

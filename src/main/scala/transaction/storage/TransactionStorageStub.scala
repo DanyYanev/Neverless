@@ -1,7 +1,6 @@
 package transaction.storage
 
-import transaction.Transaction
-import transaction.service.TransactionId
+import transaction.{Transaction, TransactionId}
 
 class TransactionStorageStub(var transactions: Map[TransactionId, Transaction] = Map.empty) extends TransactionStorage {
   override def getTransaction(id: TransactionId): Option[Transaction] = transactions.get(id)
