@@ -6,6 +6,7 @@ import account.storage.{AccountNotFound, AccountStorage, AccountStorageStub, Con
 import core.Amount
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import transfer.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransferId, TransferServiceImpl}
 import transfer.storage.TransferStorageStub
 import withdrawal.scala.WithdrawalService
 
@@ -21,11 +22,11 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
           from -> Account(from, Amount(100)),
           to -> Account(to, Amount(100))
         ))
-        
+
         val transferStorage = new TransferStorageStub(Map.empty)
         val transferService = new TransferServiceImpl(null, accountStorage, transferStorage)
 
-        val transfer = Transfer(newTransferId, from, to, Amount(50))
+        val transfer = Internal(newTransferId, from, to, Amount(50))
         val result = transferService.requestTransfer(transfer)
 
         result mustBe Right(transfer.id)
@@ -43,7 +44,7 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val transferService = new TransferServiceImpl(null, accountStorage, transferStorage)
 
         val from = newAccountId
-        val transfer = Transfer(newTransferId, from, to, Amount(50))
+        val transfer = Internal(newTransferId, from, to, Amount(50))
         val result = transferService.requestTransfer(transfer)
 
         result mustBe Left(AccountStorageFault(AccountNotFound(from)))
@@ -60,7 +61,7 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val transferService = new TransferServiceImpl(null, accountStorage, transferStorage)
 
         val to = newAccountId
-        val transfer = Transfer(newTransferId, from, to, Amount(50))
+        val transfer = Internal(newTransferId, from, to, Amount(50))
         val result = transferService.requestTransfer(transfer)
 
         result mustBe Left(AccountStorageFault(AccountNotFound(to)))
@@ -78,7 +79,7 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
         val transferStorage = new TransferStorageStub(Map.empty)
         val transferService = new TransferServiceImpl(null, accountStorage, transferStorage)
 
-        val transfer = Transfer(newTransferId, from, to, Amount(150))
+        val transfer = Internal(newTransferId, from, to, Amount(150))
         val result = transferService.requestTransfer(transfer)
 
         result mustBe Left(InsufficientFunds)
@@ -94,7 +95,7 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
           to -> Account(to, Amount(100))
         ))
 
-        val transfer = Transfer(newTransferId, from, to, Amount(50))
+        val transfer = Internal(newTransferId, from, to, Amount(50))
         val transferStorage = new TransferStorageStub(Map(
           transfer.id -> transfer
         ))
@@ -116,7 +117,7 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
           to -> Account(to, Amount(100))
         ))
 
-        val transfer = Transfer(newTransferId, from, to, Amount(50))
+        val transfer = Internal(newTransferId, from, to, Amount(50))
         val transferStorage = new TransferStorageStub(Map(
           transfer.id -> transfer
         ))
@@ -138,7 +139,7 @@ class TransferServiceImplSpec extends AnyWordSpec with Matchers with MockFactory
 
         val from = Account(newAccountId, Amount(100), 0)
         val to = Account(newAccountId, Amount(100), 0)
-        val transfer = Transfer(newTransferId, from.id, to.id, Amount(50))
+        val transfer = Internal(newTransferId, from.id, to.id, Amount(50))
 
         (accountStorage.getAccount _).expects(from.id).returning(Right(from)).once()
         (accountStorage.getAccount _).expects(to.id).returning(Right(to)).once()

@@ -1,13 +1,14 @@
-package transfer
+package transfer.service
 
 import account.Account
 import account.storage.{AccountNotFound, AccountStorage, ConcurrentModification}
 import core.Amount
+import transfer.{Internal, Withdrawal}
 import transfer.storage._
 import withdrawal.scala.WithdrawalService
 
 class TransferServiceImpl(withdrawalService: WithdrawalService, accountStorage: AccountStorage, transferStorage: TransferStorage) extends TransferService {
-  override def requestTransfer(transfer: Transfer): Either[TransferError, TransferId] = {
+  override def requestTransfer(transfer: Internal): Either[TransferError, TransferId] = {
     val result: Either[TransferError, TransferId] = for {
       from <- accountStorage.getAccount(transfer.from).left.map(AccountStorageFault)
       to <- accountStorage.getAccount(transfer.to).left.map(AccountStorageFault)

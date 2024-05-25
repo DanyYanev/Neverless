@@ -1,10 +1,8 @@
-package transfer
+package transfer.service
 
-import account.AccountId
 import account.storage.AccountStorageError
-import core.{Address, Amount}
+import transfer.{Internal, Withdrawal}
 import transfer.storage.TransferStorageError
-import withdrawal.scala.WithdrawalError
 
 import java.util.UUID
 
@@ -21,7 +19,7 @@ case class AccountStorageFault(err: AccountStorageError) extends TransferError
 case object IdempotencyViolation extends TransferError
 
 trait TransferService {
-  def requestTransfer(transfer: Transfer): Either[TransferError, TransferId]
+  def requestTransfer(transfer: Internal): Either[TransferError, TransferId]
 
   def requestWithdrawal(withdrawal: Withdrawal): Either[TransferError, TransferId]
 }

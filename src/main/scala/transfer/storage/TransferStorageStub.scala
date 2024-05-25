@@ -1,11 +1,12 @@
 package transfer.storage
 
-import transfer.{Transfer, TransferId}
+import transfer.Transaction
+import transfer.service.TransferId
 
-class TransferStorageStub(var transfers: Map[TransferId, Transfer] = Map.empty) extends TransferStorage {
-  override def getTransfer(id: TransferId): Option[Transfer] = transfers.get(id)
+class TransferStorageStub(var transfers: Map[TransferId, Transaction] = Map.empty) extends TransferStorage {
+  override def getTransfer(id: TransferId): Option[Transaction] = transfers.get(id)
 
-  override def createTransfer(transfer: Transfer): Either[TransferWithIdAlreadyExists, TransferId] = {
+  override def createTransfer(transfer: Transaction): Either[TransferWithIdAlreadyExists, TransferId] = {
     transfers.get(transfer.id) match {
       case Some(existingTransfer) => Left(TransferWithIdAlreadyExists(existingTransfer))
       case None =>
