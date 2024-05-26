@@ -4,7 +4,7 @@ import account.Account
 import account.storage.AccountStorage
 import core.Amount
 import transaction.storage._
-import transaction.{Internal, TransactionId, Withdrawal}
+import transaction._
 import withdrawal.scala.{WithdrawalId, WithdrawalService, IdempotencyViolation => WithdrawalIdempotencyViolation}
 
 import java.util.UUID
@@ -77,6 +77,15 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
       //Implementation of Idempotency
       case Left(TransactionStorageFault(TransactionWithIdAlreadyExists(_))) => Right(request.id)
       case other => other
+    }
+  }
+
+  override def getTransactionStatus(id: TransactionId): Option[TransactionStatus] = {
+    transactionStorage.getTransaction(id) match {
+      case Some(Withdrawal(_, withdrawalId, _, _, _)) =>
+        withdrawalService.getWithdrawalStatus(withdrawalId).map(TransactionStatus.from)
+      case Some(Internal(_, _, _, _)) => Some(Completed)
+      case None => None
     }
   }
 

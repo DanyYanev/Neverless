@@ -14,12 +14,12 @@ class WithdrawalServiceImpl(javaService: JavaWithdrawalService) extends Withdraw
     }
   }
 
-  def getWithdrawalStatus(id: WithdrawalId): Either[WithdrawalError, WithdrawalStatus] = {
+  def getWithdrawalStatus(id: WithdrawalId): Option[WithdrawalStatus] = {
     try {
       val status = javaService.getRequestState(new JavaWithdrawalId(id.value))
-      WithdrawalStatusConverter.convert(status)
+      Some(WithdrawalStatusConverter.convert(status))
     } catch {
-      case _: IllegalArgumentException => Left(NotFound)
+      case _: IllegalArgumentException => None
     }
   }
 }

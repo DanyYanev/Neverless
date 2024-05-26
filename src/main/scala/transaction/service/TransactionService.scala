@@ -4,7 +4,7 @@ import account.AccountId
 import account.storage.AccountStorageError
 import core.{Address, Amount}
 import transaction.storage.TransactionStorageError
-import transaction.{Internal, TransactionId}
+import transaction.{Internal, TransactionId, TransactionStatus}
 
 
 sealed trait TransactionError
@@ -23,4 +23,6 @@ trait TransactionService {
   def requestTransaction(transaction: Internal): Either[TransactionError, TransactionId]
 
   def requestWithdrawal(withdrawal: WithdrawalRequest): Either[TransactionError, TransactionId]
+
+  def getTransactionStatus(id: TransactionId): Option[TransactionStatus]
 }

@@ -9,7 +9,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionServiceImpl, WithdrawalRequest}
 import transaction.storage.TransactionStorageStub
-import withdrawal.scala.{WithdrawalId, WithdrawalService, IdempotencyViolation => WithdrawalIdempotencyViolation}
+import withdrawal.scala.{WithdrawalId, WithdrawalService, IdempotencyViolation => WithdrawalIdempotencyViolation, Processing => WithdrawalStatusProcessing}
 
 import java.util.UUID
 
@@ -301,6 +301,46 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         result mustBe Left(IdempotencyViolation)
         accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
         transactionStorage.getTransaction(withdrawal.id) mustBe None
+      }
+    }
+    "getTransactionStatus is called" should {
+      "always return completed for internal transfer" in {
+        val transaction = Internal(newTransactionId, newAccountId, newAccountId, Amount(50))
+        val transactionStorage = new TransactionStorageStub(Map(
+          transaction.id -> transaction
+        ))
+
+        val transactionService = new TransactionServiceImpl(null, null, transactionStorage)
+
+        val result = transactionService.getTransactionStatus(transaction.id)
+
+        result mustBe Some(Completed)
+      }
+      "return the status of a withdrawal" in {
+        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, newAccountId, Address("to"), Amount(50))
+        val transactionStorage = new TransactionStorageStub(Map(
+          withdrawal.id -> withdrawal
+        ))
+
+        val withdrawalService = mock[WithdrawalService]
+        val transactionService = new TransactionServiceImpl(withdrawalService, null, transactionStorage)
+
+        (withdrawalService.getWithdrawalStatus _)
+          .expects(withdrawal.withdrawalId)
+          .returning(Some(WithdrawalStatusProcessing))
+          .once()
+
+        val result = transactionService.getTransactionStatus(withdrawal.id)
+
+        result mustBe Some(Processing)
+      }
+      "return None if the transaction does not exist" in {
+        val transactionStorage = new TransactionStorageStub(Map.empty)
+        val transactionService = new TransactionServiceImpl(null, null, transactionStorage)
+
+        val result = transactionService.getTransactionStatus(newTransactionId)
+
+        result mustBe None
       }
     }
   }
