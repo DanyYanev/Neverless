@@ -9,7 +9,7 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionServiceImpl, WithdrawalRequest}
 import transaction.storage.TransactionStorageStub
-import withdrawal.scala.{WithdrawalId, WithdrawalService}
+import withdrawal.scala.{WithdrawalId, WithdrawalService, IdempotencyViolation => WithdrawalIdempotencyViolation}
 
 import java.util.UUID
 
@@ -278,6 +278,29 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         result mustBe Left(IdempotencyViolation)
         accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
         transactionStorage.getTransaction(withdrawal.id).get.amount mustBe Amount(50)
+      }
+      "fail if withdrawal service fails" in {
+        val from = Account(newAccountId, Amount(100))
+        val accountStorage = new AccountStorageStub(Map(
+          from.id -> from,
+        ))
+
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50))
+        val transactionStorage = new TransactionStorageStub(Map.empty)
+
+        val withdrawalService = mock[WithdrawalService]
+        val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
+
+        (withdrawalService.requestWithdrawal _)
+          .expects(*, *, *)
+          .returning(Left(WithdrawalIdempotencyViolation()))
+          .once()
+
+        val result = transactionService.requestWithdrawal(withdrawal)
+
+        result mustBe Left(IdempotencyViolation)
+        accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
+        transactionStorage.getTransaction(withdrawal.id) mustBe None
       }
     }
   }

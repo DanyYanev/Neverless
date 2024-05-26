@@ -14,4 +14,6 @@ trait TransactionStorage {
   def getTransaction(id: TransactionId): Option[Transaction]
 
   def createTransaction(transaction: Transaction): Either[TransactionWithIdAlreadyExists, TransactionId]
+
+  def deleteTransaction(id: TransactionId): Option[TransactionId]
 }

@@ -20,4 +20,8 @@ class TransactionStorageImpl extends TransactionStorage {
         Right(transaction.id)
     }
   }
+
+  override def deleteTransaction(id: TransactionId): Option[TransactionId] = {
+    Option(transactions.remove(id)).map(_ => id)
+  }
 }

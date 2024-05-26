@@ -13,4 +13,13 @@ class TransactionStorageStub(var transactions: Map[TransactionId, Transaction] =
         Right(transaction.id)
     }
   }
+
+  override def deleteTransaction(id: TransactionId): Option[TransactionId] = {
+    transactions.get(id) match {
+      case Some(_) =>
+        transactions = transactions - id
+        Some(id)
+      case None => None
+    }
+  }
 }

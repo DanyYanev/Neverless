@@ -67,9 +67,9 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
 
       _ <- withdrawalService.requestWithdrawal(withdrawal.withdrawalId, withdrawal.to, withdrawal.amount).left.map {
         case WithdrawalIdempotencyViolation() =>
+          returnReservedBalance(account, reservedAmount)
+          transactionStorage.deleteTransaction(transactionId)
           IdempotencyViolation
-        // In case there are other failures in the future (withdrawal service unavailable), we should rollback the "transaction"
-        // Alternatively sending a message would be more scalable.
       }
     } yield transactionId
 
