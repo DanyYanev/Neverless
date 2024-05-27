@@ -24,7 +24,7 @@ class TransactionControllerSpec extends AnyWordSpec with MockFactory with Http4s
   val transactionService: TransactionService = mock[TransactionService]
   val fixedClock: Clock = Clock.fixed(Instant.parse("2023-01-01T00:00:00Z"), ZoneOffset.UTC)
   val controller = new TransactionController(transactionService, fixedClock)
-  val routes = controller.routes
+  val routes: HttpRoutes[IO] = controller.routes
 
   "TransactionController" should {
 
