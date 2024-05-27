@@ -4,6 +4,7 @@ import account.AccountId
 import core.{Address, Amount}
 import withdrawal.scala.{WithdrawalId, WithdrawalStatus}
 
+import java.time.Instant
 import java.util.UUID
 
 case class TransactionId(value: UUID) extends AnyVal
@@ -13,11 +14,13 @@ sealed trait Transaction {
   def id: TransactionId
 
   def amount: Amount
+
+  def timestamp: Instant
 }
 
-case class Internal(id: TransactionId, from: AccountId, to: AccountId, amount: Amount) extends Transaction
+case class Internal(id: TransactionId, from: AccountId, to: AccountId, amount: Amount, timestamp: Instant) extends Transaction
 
-case class Withdrawal(id: TransactionId, withdrawalId: WithdrawalId, from: AccountId, to: Address, amount: Amount) extends Transaction
+case class Withdrawal(id: TransactionId, withdrawalId: WithdrawalId, from: AccountId, to: Address, amount: Amount, timestamp: Instant) extends Transaction
 
 sealed trait TransactionStatus
 

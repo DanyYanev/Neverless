@@ -49,14 +49,14 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
       //Same issue here as above, if any of the following operations fail, the reserved amount will be lost.
       reservedAmount <- reserveBalance(account, request.amount)
 
-      withdrawal = Withdrawal(request.id, WithdrawalId(UUID.randomUUID()), request.from, request.to, request.amount)
+      withdrawal = Withdrawal(request.id, WithdrawalId(UUID.randomUUID()), request.from, request.to, request.amount, request.timestamp)
 
       transactionId <- transactionStorage.createTransaction(withdrawal).left.map {
         case TransactionWithIdAlreadyExists(existingWithdrawal) =>
           returnReservedBalance(account, reservedAmount)
           existingWithdrawal match {
-            case Internal(_, _, _, _) => IdempotencyViolation
-            case Withdrawal(_, _, from, to, amount)
+            case Internal(_, _, _, _, _) => IdempotencyViolation
+            case Withdrawal(_, _, from, to, amount, _)
               if withdrawal.from == from &&
                 withdrawal.to == to &&
                 withdrawal.amount == amount =>
@@ -82,9 +82,9 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
 
   override def getTransactionStatus(id: TransactionId): Option[TransactionStatus] = {
     transactionStorage.getTransaction(id) match {
-      case Some(Withdrawal(_, withdrawalId, _, _, _)) =>
+      case Some(Withdrawal(_, withdrawalId, _, _, _, _)) =>
         withdrawalService.getWithdrawalStatus(withdrawalId).map(TransactionStatus.from)
-      case Some(Internal(_, _, _, _)) => Some(Completed)
+      case Some(Internal(_, _, _, _, _)) => Some(Completed)
       case None => None
     }
   }

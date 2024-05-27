@@ -6,6 +6,8 @@ import core.{Address, Amount}
 import transaction.storage.TransactionStorageError
 import transaction.{Internal, TransactionId, TransactionStatus}
 
+import java.time.Instant
+
 
 sealed trait TransactionError
 
@@ -17,7 +19,7 @@ case class AccountStorageFault(err: AccountStorageError) extends TransactionErro
 
 case object IdempotencyViolation extends TransactionError
 
-case class WithdrawalRequest(id: TransactionId, from: AccountId, to: Address, amount: Amount)
+case class WithdrawalRequest(id: TransactionId, from: AccountId, to: Address, amount: Amount, timestamp: Instant)
 
 trait TransactionService {
   def requestTransaction(transaction: Internal): Either[TransactionError, TransactionId]

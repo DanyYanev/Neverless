@@ -11,6 +11,7 @@ import transaction.service.{AccountStorageFault, IdempotencyViolation, Insuffici
 import transaction.storage.TransactionStorageStub
 import withdrawal.scala.{WithdrawalId, WithdrawalService, IdempotencyViolation => WithdrawalIdempotencyViolation, Processing => WithdrawalStatusProcessing}
 
+import java.time.Instant
 import java.util.UUID
 
 class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFactory {
@@ -27,7 +28,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val transactionStorage = new TransactionStorageStub(Map.empty)
         val transactionService = new TransactionServiceImpl(null, accountStorage, transactionStorage)
 
-        val transaction = Internal(newTransactionId, from, to, Amount(50))
+        val transaction = Internal(newTransactionId, from, to, Amount(50), Instant.now())
         val result = transactionService.requestTransaction(transaction)
 
         result mustBe Right(transaction.id)
@@ -45,7 +46,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val transactionService = new TransactionServiceImpl(null, accountStorage, transactionStorage)
 
         val from = newAccountId
-        val transaction = Internal(newTransactionId, from, to, Amount(50))
+        val transaction = Internal(newTransactionId, from, to, Amount(50), Instant.now())
         val result = transactionService.requestTransaction(transaction)
 
         result mustBe Left(AccountStorageFault(AccountNotFound(from)))
@@ -62,7 +63,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val transactionService = new TransactionServiceImpl(null, accountStorage, transactionStorage)
 
         val to = newAccountId
-        val transaction = Internal(newTransactionId, from, to, Amount(50))
+        val transaction = Internal(newTransactionId, from, to, Amount(50), Instant.now())
         val result = transactionService.requestTransaction(transaction)
 
         result mustBe Left(AccountStorageFault(AccountNotFound(to)))
@@ -80,7 +81,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val transactionStorage = new TransactionStorageStub(Map.empty)
         val transactionService = new TransactionServiceImpl(null, accountStorage, transactionStorage)
 
-        val transaction = Internal(newTransactionId, from, to, Amount(150))
+        val transaction = Internal(newTransactionId, from, to, Amount(150), Instant.now())
         val result = transactionService.requestTransaction(transaction)
 
         result mustBe Left(InsufficientFunds)
@@ -96,7 +97,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
           to -> Account(to, Amount(100))
         ))
 
-        val transaction = Internal(newTransactionId, from, to, Amount(50))
+        val transaction = Internal(newTransactionId, from, to, Amount(50), Instant.now())
         val transactionStorage = new TransactionStorageStub(Map(
           transaction.id -> transaction
         ))
@@ -118,7 +119,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
           to -> Account(to, Amount(100))
         ))
 
-        val transaction = Internal(newTransactionId, from, to, Amount(50))
+        val transaction = Internal(newTransactionId, from, to, Amount(50), Instant.now())
         val transactionStorage = new TransactionStorageStub(Map(
           transaction.id -> transaction
         ))
@@ -140,7 +141,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
 
         val from = Account(newAccountId, Amount(100), 0)
         val to = Account(newAccountId, Amount(100), 0)
-        val transaction = Internal(newTransactionId, from.id, to.id, Amount(50))
+        val transaction = Internal(newTransactionId, from.id, to.id, Amount(50), Instant.now())
 
         (accountStorage.getAccount _).expects(from.id).returning(Right(from)).once()
         (accountStorage.getAccount _).expects(to.id).returning(Right(to)).once()
@@ -166,7 +167,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val withdrawalService = mock[WithdrawalService]
         val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
 
-        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50))
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50), Instant.now())
         val capturedWithdrawalId = CaptureOne[WithdrawalId]()
 
         (withdrawalService.requestWithdrawal _)
@@ -185,7 +186,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val transaction = transactionStorage.getTransaction(withdrawal.id).get
         val expectedWithdrawalId = capturedWithdrawalId.value
         transaction must matchPattern {
-          case Withdrawal(withdrawal.id, `expectedWithdrawalId`, withdrawal.from, withdrawal.to, Amount(50)) =>
+          case Withdrawal(withdrawal.id, `expectedWithdrawalId`, withdrawal.from, withdrawal.to, Amount(50), withdrawal.timestamp) =>
         }
       }
       "fail if the account does not exist" in {
@@ -194,7 +195,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val transactionService = new TransactionServiceImpl(mock[WithdrawalService], accountStorage, transactionStorage)
 
         val from = newAccountId
-        val withdrawal = WithdrawalRequest(newTransactionId, from, Address("to"), Amount(50))
+        val withdrawal = WithdrawalRequest(newTransactionId, from, Address("to"), Amount(50), Instant.now())
 
         val result = transactionService.requestWithdrawal(withdrawal)
 
@@ -211,7 +212,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val withdrawalService = mock[WithdrawalService]
         val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
 
-        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(150))
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(150), Instant.now())
 
         val result = transactionService.requestWithdrawal(withdrawal)
 
@@ -226,7 +227,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
 
         val from = Account(newAccountId, Amount(100), 0)
-        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50))
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50), Instant.now())
 
         (accountStorage.getAccount _).expects(from.id).returning(Right(from)).once()
         (accountStorage.conditionalPutAccount _)
@@ -245,7 +246,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
           from.id -> from,
         ))
 
-        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, from.id, Address("to"), Amount(50))
+        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, from.id, Address("to"), Amount(50), Instant.now())
         val transactionStorage = new TransactionStorageStub(Map(
           withdrawal.id -> withdrawal
         ))
@@ -253,7 +254,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val withdrawalService = mock[WithdrawalService]
         val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
 
-        val result = transactionService.requestWithdrawal(WithdrawalRequest(withdrawal.id, withdrawal.from, withdrawal.to, withdrawal.amount))
+        val result = transactionService.requestWithdrawal(WithdrawalRequest(withdrawal.id, withdrawal.from, withdrawal.to, withdrawal.amount, Instant.now()))
 
         result mustBe Right(withdrawal.id)
         accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
@@ -265,7 +266,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
           from.id -> from,
         ))
 
-        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, from.id, Address("to"), Amount(50))
+        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, from.id, Address("to"), Amount(50), Instant.now())
         val transactionStorage = new TransactionStorageStub(Map(
           withdrawal.id -> withdrawal
         ))
@@ -273,7 +274,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         val withdrawalService = mock[WithdrawalService]
         val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
 
-        val result = transactionService.requestWithdrawal(WithdrawalRequest(withdrawal.id, withdrawal.from, withdrawal.to, Amount(100)))
+        val result = transactionService.requestWithdrawal(WithdrawalRequest(withdrawal.id, withdrawal.from, withdrawal.to, Amount(100), Instant.now()))
 
         result mustBe Left(IdempotencyViolation)
         accountStorage.getAccount(from.id).map(_.balance) mustBe Right(Amount(100))
@@ -285,7 +286,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
           from.id -> from,
         ))
 
-        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50))
+        val withdrawal = WithdrawalRequest(newTransactionId, from.id, Address("to"), Amount(50), Instant.now())
         val transactionStorage = new TransactionStorageStub(Map.empty)
 
         val withdrawalService = mock[WithdrawalService]
@@ -305,7 +306,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
     }
     "getTransactionStatus is called" should {
       "always return completed for internal transfer" in {
-        val transaction = Internal(newTransactionId, newAccountId, newAccountId, Amount(50))
+        val transaction = Internal(newTransactionId, newAccountId, newAccountId, Amount(50), Instant.now())
         val transactionStorage = new TransactionStorageStub(Map(
           transaction.id -> transaction
         ))
@@ -317,7 +318,7 @@ class TransactionServiceImplSpec extends AnyWordSpec with Matchers with MockFact
         result mustBe Some(Completed)
       }
       "return the status of a withdrawal" in {
-        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, newAccountId, Address("to"), Amount(50))
+        val withdrawal = Withdrawal(newTransactionId, newWithdrawalId, newAccountId, Address("to"), Amount(50), Instant.now())
         val transactionStorage = new TransactionStorageStub(Map(
           withdrawal.id -> withdrawal
         ))
