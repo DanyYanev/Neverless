@@ -1,14 +1,14 @@
-package transaction
+package transaction.service
 
-import org.scalamock.scalatest.MockFactory
-import account.{Account, AccountId}
 import account.storage.{AccountNotFound, AccountStorage, AccountStorageStub, ConcurrentModification}
+import account.{Account, AccountId}
 import core.{Address, Amount}
 import org.scalamock.matchers.ArgCapture.CaptureOne
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionServiceImpl, WithdrawalRequest}
 import transaction.storage.TransactionStorageStub
+import transaction._
 import withdrawal.scala.{WithdrawalId, WithdrawalService, IdempotencyViolation => WithdrawalIdempotencyViolation, Processing => WithdrawalStatusProcessing}
 
 import java.time.Instant
