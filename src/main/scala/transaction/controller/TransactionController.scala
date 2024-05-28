@@ -3,28 +3,24 @@ package transaction.controller
 import account.AccountId
 import account.storage.{AccountNotFound, ConcurrentModification}
 import cats.effect.IO
-import core.{Address, Amount}
-import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
+import core.{Address}
+import io.circe.syntax.EncoderOps
 import org.http4s._
-import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.circe._
 import org.http4s.dsl.io._
-import transaction.controller.models.TransactionResponse
+import transaction.controller.models.{InternalTransactionRequest, TransactionResponse, WithdrawalRequest}
 import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionError, TransactionService, TransactionStorageFault, WithdrawalRequest => WithdrawalServiceRequest}
 import transaction.storage.TransactionWithIdAlreadyExists
+import transaction.controller.models.TransactionResponse.transactionResponseListEncoder
 import transaction.{Internal, TransactionId}
+import transaction.controller.models.Requests._
 
 import java.time.{Clock, Instant}
 import java.util.UUID
 
-case class InternalTransactionRequest(id: UUID, toAccountId: UUID, amount: Amount)
-
-case class WithdrawalRequest(id: UUID, toAddress: String, amount: Amount)
 
 class TransactionController(transactionService: TransactionService, clock: Clock) {
 
-  implicit val internalTransactionDecoder: EntityDecoder[IO, InternalTransactionRequest] = jsonOf[IO, InternalTransactionRequest]
-  implicit val withdrawalTransactionDecoder: EntityDecoder[IO, WithdrawalRequest] = jsonOf[IO, WithdrawalRequest]
 
   private def requestInternalTransaction(accountId: UUID, req: InternalTransactionRequest): IO[Response[IO]] = {
     val transaction = Internal(
@@ -57,7 +53,7 @@ class TransactionController(transactionService: TransactionService, clock: Clock
   private def getAllTransactions(accountId: UUID): IO[Response[IO]] = {
     transactionService.getTransactionHistory(AccountId(accountId)) match {
       case Right(transactions) =>
-        Ok(transactions.map(TransactionResponse.fromTransaction))
+        Ok(transactions.map(TransactionResponse.fromTransaction).asJson)
       case Left(AccountNotFound(_)) =>
         NotFound()
     }
@@ -67,10 +63,11 @@ class TransactionController(transactionService: TransactionService, clock: Clock
     case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" / "internal" =>
       req.decode[InternalTransactionRequest](requestInternalTransaction(accountId, _))
 
-    case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" / "withdrawals" =>
+    case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" / "withdrawal" =>
       req.decode[WithdrawalRequest](requestWithdrawal(accountId, _))
 
     case GET -> Root / "accounts" / UUIDVar(accountId) / "transactions" =>
+      Console.println("GET /accounts/" + accountId + "/transactions")
       getAllTransactions(accountId)
   }
 }
@@ -78,6 +75,7 @@ class TransactionController(transactionService: TransactionService, clock: Clock
 private object TransactionController {
   //This is where we do custom error formatting
   private def toCode(error: TransactionError): IO[Response[IO]] = {
+    Console.println("Error: " + error)
     val status = error match {
       case InsufficientFunds => Status.BadRequest
       case IdempotencyViolation => Status.Conflict

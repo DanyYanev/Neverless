@@ -1,4 +1,4 @@
-import account.storage.AccountStorageImpl
+import account.storage.{AccountStorageImpl, DefaultValues}
 import cats.effect.{IO, IOApp}
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.implicits._
@@ -11,7 +11,7 @@ import withdrawal.scala.WithdrawalServiceImpl
 
 object TransactionServer extends IOApp.Simple {
   override def run: IO[Unit] = {
-    val accountStorage = new AccountStorageImpl()
+    val accountStorage = new AccountStorageImpl(DefaultValues.accounts)
     val transactionStorage = new TransactionStorageImpl()
     val withdrawalService = new WithdrawalServiceImpl(new WithdrawalServiceStub())
 

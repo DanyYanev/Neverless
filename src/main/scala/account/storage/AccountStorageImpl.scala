@@ -5,8 +5,9 @@ import core.Amount
 
 import java.util.concurrent.ConcurrentHashMap
 
-class AccountStorageImpl extends AccountStorage {
+class AccountStorageImpl(defaultAccounts: List[Account]) extends AccountStorage {
   private val accounts = new ConcurrentHashMap[AccountId, Account]()
+  defaultAccounts.foreach(account => accounts.put(account.id, account))
 
   override def getAccount(accountId: AccountId): Either[AccountNotFound, Account] =
     Option(accounts.get(accountId)) match {

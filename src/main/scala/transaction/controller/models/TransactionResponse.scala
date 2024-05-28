@@ -1,8 +1,11 @@
 package transaction.controller.models
 
+import cats.effect.IO
 import core.Amount
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
 import io.circe.{Decoder, Encoder}
+import org.http4s.EntityDecoder
+import org.http4s.circe.jsonOf
 import transaction.{Internal, Transaction, Withdrawal}
 
 import java.time.Instant
@@ -50,6 +53,8 @@ object TransactionResponse {
     case Internal(id, from, to, amount, timestamp) => InternalTransactionResponse(id.value, from.value, to.value, amount, timestamp)
     case Withdrawal(id, _, from, to, amount, timestamp) => WithdrawalTransactionResponse(id.value, from.value, to.value, amount, timestamp)
   }
+
+  implicit val transactionResponseListEncoder: Encoder[List[TransactionResponse]] = Encoder.encodeList(encodeTransactionResponse)
 }
 
 sealed trait TransactionType {
@@ -77,4 +82,13 @@ object TransactionType {
   implicit val decodeTransactionType: Decoder[TransactionType] = Decoder.decodeString.emap { str =>
     fromString(str).toRight(s"Invalid transaction type: $str")
   }
+}
+
+case class InternalTransactionRequest(id: UUID, toAccountId: UUID, amount: Amount)
+
+case class WithdrawalRequest(id: UUID, toAddress: String, amount: Amount)
+
+object Requests {
+  implicit val internalTransactionDecoder: EntityDecoder[IO, InternalTransactionRequest] = jsonOf[IO, InternalTransactionRequest]
+  implicit val withdrawalTransactionDecoder: EntityDecoder[IO, WithdrawalRequest] = jsonOf[IO, WithdrawalRequest]
 }
