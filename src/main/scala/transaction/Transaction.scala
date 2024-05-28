@@ -13,6 +13,8 @@ case class TransactionId(value: UUID) extends AnyVal
 sealed trait Transaction {
   def id: TransactionId
 
+  def from: AccountId
+
   def amount: Amount
 
   def timestamp: Instant

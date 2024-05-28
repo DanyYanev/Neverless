@@ -1,10 +1,10 @@
 package transaction.service
 
 import account.AccountId
-import account.storage.AccountStorageError
+import account.storage.{AccountNotFound, AccountStorageError}
 import core.{Address, Amount}
 import transaction.storage.TransactionStorageError
-import transaction.{Internal, TransactionId, TransactionStatus}
+import transaction.{Internal, Transaction, TransactionId, TransactionStatus}
 
 import java.time.Instant
 
@@ -27,4 +27,6 @@ trait TransactionService {
   def requestWithdrawal(withdrawal: WithdrawalRequest): Either[TransactionError, TransactionId]
 
   def getTransactionStatus(id: TransactionId): Option[TransactionStatus]
+
+  def getTransactionHistory(accountId: AccountId): Either[AccountNotFound, List[Transaction]]
 }

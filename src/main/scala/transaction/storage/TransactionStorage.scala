@@ -1,5 +1,6 @@
 package transaction.storage
 
+import account.AccountId
 import transaction.{Transaction, TransactionId}
 
 //This abstraction is technically not needed, but in production its very common to have more than one error
@@ -12,6 +13,8 @@ case class TransactionWithIdAlreadyExists(existingTransaction: Transaction) exte
 // Can be an issue if pagination is required, as merging results wouldn't be fun
 trait TransactionStorage {
   def getTransaction(id: TransactionId): Option[Transaction]
+
+  def getTransactions(id: AccountId): List[Transaction]
 
   def createTransaction(transaction: Transaction): Either[TransactionWithIdAlreadyExists, TransactionId]
 

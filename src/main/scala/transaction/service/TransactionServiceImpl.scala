@@ -1,7 +1,7 @@
 package transaction.service
 
-import account.Account
-import account.storage.AccountStorage
+import account.{Account, AccountId}
+import account.storage.{AccountNotFound, AccountStorage}
 import core.Amount
 import transaction.storage._
 import transaction._
@@ -87,6 +87,10 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
       case Some(Internal(_, _, _, _, _)) => Some(Completed)
       case None => None
     }
+  }
+
+  override def getTransactionHistory(accountId: AccountId): Either[AccountNotFound, List[Transaction]] = {
+    accountStorage.getAccount(accountId).map(account => transactionStorage.getTransactions(account.id))
   }
 
   private def reserveBalance(account: Account, amount: Amount): Either[TransactionError, Amount] = {

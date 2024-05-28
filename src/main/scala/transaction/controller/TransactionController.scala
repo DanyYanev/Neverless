@@ -6,8 +6,10 @@ import cats.effect.IO
 import core.{Address, Amount}
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
 import org.http4s._
+import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.circe._
 import org.http4s.dsl.io._
+import transaction.controller.models.TransactionResponse
 import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionError, TransactionService, TransactionStorageFault, WithdrawalRequest => WithdrawalServiceRequest}
 import transaction.storage.TransactionWithIdAlreadyExists
 import transaction.{Internal, TransactionId}
@@ -52,12 +54,24 @@ class TransactionController(transactionService: TransactionService, clock: Clock
     }
   }
 
+  private def getAllTransactions(accountId: UUID): IO[Response[IO]] = {
+    transactionService.getTransactionHistory(AccountId(accountId)) match {
+      case Right(transactions) =>
+        Ok(transactions.map(TransactionResponse.fromTransaction))
+      case Left(AccountNotFound(_)) =>
+        NotFound()
+    }
+  }
+
   val routes: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" =>
+    case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" / "internal" =>
       req.decode[InternalTransactionRequest](requestInternalTransaction(accountId, _))
 
-    case req@POST -> Root / "accounts" / UUIDVar(accountId) / "withdrawals" =>
+    case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" / "withdrawals" =>
       req.decode[WithdrawalRequest](requestWithdrawal(accountId, _))
+
+    case GET -> Root / "accounts" / UUIDVar(accountId) / "transactions" =>
+      getAllTransactions(accountId)
   }
 }
 

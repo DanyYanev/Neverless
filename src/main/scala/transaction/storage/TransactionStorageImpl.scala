@@ -1,7 +1,8 @@
 package transaction.storage
 
+import account.AccountId
 import transaction.{Transaction, TransactionId}
-
+import scala.jdk.CollectionConverters._
 import java.util.concurrent.ConcurrentHashMap
 
 class TransactionStorageImpl extends TransactionStorage {
@@ -10,6 +11,10 @@ class TransactionStorageImpl extends TransactionStorage {
 
   override def getTransaction(id: TransactionId): Option[Transaction] = {
     Option(transactions.get(id))
+  }
+
+  override def getTransactions(id: AccountId): List[Transaction] = {
+    transactions.values().asScala.toList.filter(_.from == id)
   }
 
   override def createTransaction(transaction: Transaction): Either[TransactionWithIdAlreadyExists, TransactionId] = {
