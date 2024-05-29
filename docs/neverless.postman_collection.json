@@ -1,0 +1,119 @@
+{
+	"info": {
+		"_postman_id": "54eac302-ab84-4300-a394-7fd98a9ab52d",
+		"name": "neverless",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "9726999"
+	},
+	"item": [
+		{
+			"name": "Get transactions",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/accounts/00000000-0000-0000-0000-000000000001/transactions",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"accounts",
+						"00000000-0000-0000-0000-000000000001",
+						"transactions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get transaction",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/accounts/00000000-0000-0000-0000-000000000001/transactions/00000000-0000-0000-0000-000000000040",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"accounts",
+						"00000000-0000-0000-0000-000000000001",
+						"transactions",
+						"00000000-0000-0000-0000-000000000040"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Withdrawal",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"id\": \"00000000-0000-0000-0000-000000000020\",\n    \"toAddress\": \"withdrawal-address\",\n    \"amount\": {\n        \"value\": 1000\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/accounts/00000000-0000-0000-0000-000000000001/transactions/withdrawal",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"accounts",
+						"00000000-0000-0000-0000-000000000001",
+						"transactions",
+						"withdrawal"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Internal Transfer",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"id\": \"00000000-0000-0000-0000-000000000010\",\n    \"toAccountId\": \"00000000-0000-0000-0000-000000000002\",\n    \"amount\": {\n        \"value\": 10\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/accounts/00000000-0000-0000-0000-000000000001/transactions/internal",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"accounts",
+						"00000000-0000-0000-0000-000000000001",
+						"transactions",
+						"internal"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

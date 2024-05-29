@@ -4,6 +4,8 @@ I've implemented the service in Scala (2.13.14) with sbt (1.10.0) & Java SDK 20
 
 Used standard Scala functional libraries like http4s, cats, circe etc.
 
+Postman collection with example requests is available in /docs/
+
 Some notes:
 
 1. Most design decisions were future proofed, although probably there was no need for this project
