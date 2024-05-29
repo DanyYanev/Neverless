@@ -1,19 +1,28 @@
 package transaction.service
 
-import account.{Account, AccountId}
 import account.storage.{AccountNotFound, AccountStorage}
-import core.Amount
-import transaction.storage._
+import account.{Account, AccountId}
+import core.{Address, Amount}
 import transaction._
+import transaction.service.models.Transaction
+import transaction.storage._
+import transaction.storage.models.{InternalRecord, TransactionRecord, WithdrawalRecord}
+import utils.UUIDGenerator
 import withdrawal.scala.{WithdrawalId, WithdrawalService, IdempotencyViolation => WithdrawalIdempotencyViolation}
 
-import java.util.UUID
+import java.time.Instant
 
-class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorage: AccountStorage, transactionStorage: TransactionStorage) extends TransactionService {
-  override def requestTransaction(transaction: Internal): Either[TransactionError, TransactionId] = {
+class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorage: AccountStorage, transactionStorage: TransactionStorage, generator: UUIDGenerator) extends TransactionService {
+  override def requestTransaction(
+    id: TransactionId,
+    from: AccountId,
+    to: AccountId,
+    amount: Amount,
+    timestamp: Instant
+  ): Either[TransactionError, TransactionId] = {
     val result: Either[TransactionError, TransactionId] = for {
-      from <- accountStorage.getAccount(transaction.from).left.map(AccountStorageFault)
-      to <- accountStorage.getAccount(transaction.to).left.map(AccountStorageFault)
+      from <- accountStorage.getAccount(from).left.map(AccountStorageFault)
+      to <- accountStorage.getAccount(to).left.map(AccountStorageFault)
 
       // There is a huge problem here.
       // If the service crashes between reserving amount and creating transaction, the reserved amount will be lost.
@@ -21,12 +30,13 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
       // SQL Transactions, optimistic locking(1) + conditional updates on multiple rows, write-ahead logs or something else.
       // (1) Locking has to implement TTL else it can lock resources forever.
       // I've decided to bury my head into the sand and pretend that problem doesn't exists for sake of time.
-      reservedAmount <- reserveBalance(from, transaction.amount)
+      reservedAmount <- reserveBalance(from, amount)
 
-      transactionId <- transactionStorage.createTransaction(transaction).left.map {
+      record = InternalRecord(id, from.id, to.id, amount, timestamp)
+      transactionId <- transactionStorage.createTransaction(record).left.map {
         case TransactionWithIdAlreadyExists(existingTransaction) =>
           returnReservedBalance(from, reservedAmount)
-          if (existingTransaction == transaction)
+          if (existingTransaction == record)
             TransactionStorageFault(TransactionWithIdAlreadyExists(existingTransaction))
           else
             IdempotencyViolation
@@ -37,26 +47,32 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
 
     result match {
       //Implementation of Idempotency
-      case Left(TransactionStorageFault(TransactionWithIdAlreadyExists(_))) => Right(transaction.id)
+      case Left(TransactionStorageFault(TransactionWithIdAlreadyExists(_))) => Right(id)
       case other => other
     }
   }
 
-  override def requestWithdrawal(request: WithdrawalRequest): Either[TransactionError, TransactionId] = {
+  override def requestWithdrawal(
+    id: TransactionId,
+    from: AccountId,
+    to: Address,
+    amount: Amount,
+    timestamp: Instant
+  ): Either[TransactionError, TransactionId] = {
     val result = for {
-      account <- accountStorage.getAccount(request.from).left.map(AccountStorageFault)
+      account <- accountStorage.getAccount(from).left.map(AccountStorageFault)
 
-      //Same issue here as above, if any of the following operations fail, the reserved amount will be lost.
-      reservedAmount <- reserveBalance(account, request.amount)
+      //Same issue here as above, if the service stops during the critical zone, the reserved amount will be lost.
+      reservedAmount <- reserveBalance(account, amount)
 
-      withdrawal = Withdrawal(request.id, WithdrawalId(UUID.randomUUID()), request.from, request.to, request.amount, request.timestamp)
+      withdrawal = WithdrawalRecord(id, WithdrawalId(generator.generateUUID()), from, to, amount, timestamp)
 
       transactionId <- transactionStorage.createTransaction(withdrawal).left.map {
         case TransactionWithIdAlreadyExists(existingWithdrawal) =>
           returnReservedBalance(account, reservedAmount)
           existingWithdrawal match {
-            case Internal(_, _, _, _, _) => IdempotencyViolation
-            case Withdrawal(_, _, from, to, amount, _)
+            case InternalRecord(_, _, _, _, _) => IdempotencyViolation
+            case WithdrawalRecord(_, _, from, to, amount, _)
               if withdrawal.from == from &&
                 withdrawal.to == to &&
                 withdrawal.amount == amount =>
@@ -75,22 +91,21 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
 
     result match {
       //Implementation of Idempotency
-      case Left(TransactionStorageFault(TransactionWithIdAlreadyExists(_))) => Right(request.id)
+      case Left(TransactionStorageFault(TransactionWithIdAlreadyExists(_))) => Right(id)
       case other => other
     }
   }
 
-  override def getTransactionStatus(id: TransactionId): Option[TransactionStatus] = {
-    transactionStorage.getTransaction(id) match {
-      case Some(Withdrawal(_, withdrawalId, _, _, _, _)) =>
-        withdrawalService.getWithdrawalStatus(withdrawalId).map(TransactionStatus.from)
-      case Some(Internal(_, _, _, _, _)) => Some(Completed)
-      case None => None
-    }
+
+  override def getTransaction(accountId: AccountId, id: TransactionId): Option[Transaction] = {
+    transactionStorage.getTransaction(id).filter(_.from == accountId).flatMap(withStatus)
   }
 
   override def getTransactionHistory(accountId: AccountId): Either[AccountNotFound, List[Transaction]] = {
-    accountStorage.getAccount(accountId).map(account => transactionStorage.getTransactions(account.id))
+    accountStorage
+      .getAccount(accountId)
+      .map(account => transactionStorage.getTransactions(account.id))
+      .map(_.flatMap(withStatus))
   }
 
   private def reserveBalance(account: Account, amount: Amount): Either[TransactionError, Amount] = {
@@ -106,5 +121,11 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
 
   private def returnReservedBalance(account: Account, amount: Amount): Unit = {
     accountStorage.addBalance(account.id, amount)
+  }
+
+  private def withStatus(record: TransactionRecord): Option[Transaction] = record match {
+    case InternalRecord(_, _, _, _, _) => Some(Transaction.from(record, TransactionStatus.Completed))
+    case WithdrawalRecord(_, withdrawalId, _, _, _, _) =>
+      withdrawalService.getWithdrawalStatus(withdrawalId).map(TransactionStatus.from).map(Transaction.from(record, _))
   }
 }

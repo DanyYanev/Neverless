@@ -19,6 +19,7 @@ libraryDependencies ++= Seq(
   "org.http4s" %% "http4s-dsl" % "0.23.12",
   "io.circe" %% "circe-generic" % "0.14.6",
   "io.circe" %% "circe-literal" % "0.14.6",
+  "io.circe" %% "circe-parser" % "0.14.6",
   "org.typelevel" %% "cats-effect" % "3.3.12",
   "org.scalatest" %% "scalatest" % "3.2.18" % Test,
   "org.scalamock" %% "scalamock" % "6.0.0" % Test

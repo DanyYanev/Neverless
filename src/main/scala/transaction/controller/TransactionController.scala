@@ -3,17 +3,17 @@ package transaction.controller
 import account.AccountId
 import account.storage.{AccountNotFound, ConcurrentModification}
 import cats.effect.IO
-import core.{Address}
+import core.Address
 import io.circe.syntax.EncoderOps
 import org.http4s._
 import org.http4s.circe._
 import org.http4s.dsl.io._
-import transaction.controller.models.{InternalTransactionRequest, TransactionResponse, WithdrawalRequest}
-import transaction.service.{AccountStorageFault, IdempotencyViolation, InsufficientFunds, TransactionError, TransactionService, TransactionStorageFault, WithdrawalRequest => WithdrawalServiceRequest}
-import transaction.storage.TransactionWithIdAlreadyExists
-import transaction.controller.models.TransactionResponse.transactionResponseListEncoder
-import transaction.{Internal, TransactionId}
+import transaction.TransactionId
 import transaction.controller.models.Requests._
+import transaction.controller.models.TransactionResponse.transactionResponseListEncoder
+import transaction.controller.models.{InternalTransactionRequest, TransactionResponse, WithdrawalRequest}
+import transaction.service._
+import transaction.storage.TransactionWithIdAlreadyExists
 
 import java.time.{Clock, Instant}
 import java.util.UUID
@@ -23,28 +23,26 @@ class TransactionController(transactionService: TransactionService, clock: Clock
 
 
   private def requestInternalTransaction(accountId: UUID, req: InternalTransactionRequest): IO[Response[IO]] = {
-    val transaction = Internal(
-      id = TransactionId(req.id),
-      from = AccountId(accountId),
-      to = AccountId(req.toAccountId),
-      amount = req.amount,
-      timestamp = Instant.now(clock)
-    )
-    transactionService.requestTransaction(transaction) match {
+    transactionService.requestTransaction(
+      TransactionId(req.id),
+      AccountId(accountId),
+      AccountId(req.toAccountId),
+      req.amount,
+      Instant.now(clock)
+    ) match {
       case Right(_) => Ok()
       case Left(error) => TransactionController.toCode(error)
     }
   }
 
   private def requestWithdrawal(accountId: UUID, req: WithdrawalRequest): IO[Response[IO]] = {
-    val withdrawal = WithdrawalServiceRequest(
-      id = TransactionId(req.id),
-      from = AccountId(accountId),
-      to = Address(req.toAddress),
-      amount = req.amount,
-      timestamp = Instant.now(clock)
-    )
-    transactionService.requestWithdrawal(withdrawal) match {
+    transactionService.requestWithdrawal(
+      TransactionId(req.id),
+      AccountId(accountId),
+      Address(req.toAddress),
+      req.amount,
+      Instant.now(clock)
+    ) match {
       case Right(_) => Ok()
       case Left(error) => TransactionController.toCode(error)
     }
@@ -59,6 +57,13 @@ class TransactionController(transactionService: TransactionService, clock: Clock
     }
   }
 
+  private def getTransaction(accountId: UUID, transactionId: UUID): IO[Response[IO]] = {
+    transactionService.getTransaction(AccountId(accountId), TransactionId(transactionId)) match {
+      case Some(transaction) => Ok(TransactionResponse.fromTransaction(transaction).asJson)
+      case None => NotFound()
+    }
+  }
+
   val routes: HttpRoutes[IO] = HttpRoutes.of[IO] {
     case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" / "internal" =>
       req.decode[InternalTransactionRequest](requestInternalTransaction(accountId, _))
@@ -67,8 +72,10 @@ class TransactionController(transactionService: TransactionService, clock: Clock
       req.decode[WithdrawalRequest](requestWithdrawal(accountId, _))
 
     case GET -> Root / "accounts" / UUIDVar(accountId) / "transactions" =>
-      Console.println("GET /accounts/" + accountId + "/transactions")
       getAllTransactions(accountId)
+
+    case GET -> Root / "accounts" / UUIDVar(accountId) / "transactions" / UUIDVar(transactionId) =>
+      getTransaction(accountId, transactionId)
   }
 }
 

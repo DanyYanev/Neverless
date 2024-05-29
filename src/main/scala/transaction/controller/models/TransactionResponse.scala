@@ -2,11 +2,13 @@ package transaction.controller.models
 
 import cats.effect.IO
 import core.Amount
+import io.circe.{Encoder, Json}
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
-import io.circe.{Decoder, Encoder}
+import io.circe.syntax.EncoderOps
 import org.http4s.EntityDecoder
 import org.http4s.circe.jsonOf
-import transaction.{Internal, Transaction, Withdrawal}
+import transaction.TransactionStatus
+import transaction.service.models.{Internal, Transaction, Withdrawal}
 
 import java.time.Instant
 import java.util.UUID
@@ -29,6 +31,7 @@ case class InternalTransactionResponse(
   toAccountId: UUID,
   amount: Amount,
   timestamp: Instant,
+  status: TransactionStatus
 ) extends TransactionResponse {
   val transactionType: TransactionType = TransactionType.Internal
 }
@@ -39,19 +42,38 @@ case class WithdrawalTransactionResponse(
   toAddress: String,
   amount: Amount,
   timestamp: Instant,
+  status: TransactionStatus
 ) extends TransactionResponse {
   val transactionType: TransactionType = TransactionType.Withdrawal
 }
 
 object TransactionResponse {
   implicit val encodeTransactionResponse: Encoder[TransactionResponse] = Encoder.instance {
-    case i: InternalTransactionResponse => Encoder[InternalTransactionResponse].apply(i)
-    case w: WithdrawalTransactionResponse => Encoder[WithdrawalTransactionResponse].apply(w)
+    case i: InternalTransactionResponse =>
+      Json.obj(
+        ("id", Json.fromString(i.id.toString)),
+        ("accountId", Json.fromString(i.accountId.toString)),
+        ("toAccountId", Json.fromString(i.toAccountId.toString)),
+        ("amount", i.amount.asJson),
+        ("timestamp", Json.fromString(i.timestamp.toString)),
+        ("status", Json.fromString(i.status.value)),
+        ("transactionType", Json.fromString(i.transactionType.value)),
+      )
+    case w: WithdrawalTransactionResponse =>
+      Json.obj(
+        ("id", Json.fromString(w.id.toString)),
+        ("accountId", Json.fromString(w.accountId.toString)),
+        ("toAddress", Json.fromString(w.toAddress)),
+        ("amount", w.amount.asJson),
+        ("timestamp", Json.fromString(w.timestamp.toString)),
+        ("status", Json.fromString(w.status.value)),
+        ("transactionType", Json.fromString(w.transactionType.value)),
+      )
   }
 
   def fromTransaction(transaction: Transaction): TransactionResponse = transaction match {
-    case Internal(id, from, to, amount, timestamp) => InternalTransactionResponse(id.value, from.value, to.value, amount, timestamp)
-    case Withdrawal(id, _, from, to, amount, timestamp) => WithdrawalTransactionResponse(id.value, from.value, to.value, amount, timestamp)
+    case Internal(id, from, to, amount, timestamp, status) => InternalTransactionResponse(id.value, from.value, to.value, amount, timestamp, status)
+    case Withdrawal(id, _, from, to, amount, timestamp, status) => WithdrawalTransactionResponse(id.value, from.value, to.value, amount, timestamp, status)
   }
 
   implicit val transactionResponseListEncoder: Encoder[List[TransactionResponse]] = Encoder.encodeList(encodeTransactionResponse)
@@ -72,16 +94,7 @@ object TransactionType {
     val value: String = "withdrawal"
   }
 
-  //This is horrendous...
-  //We can use reflection to populate this automatically
-  val values: List[TransactionType] = List(Internal, Withdrawal)
-
-  private def fromString(s: String): Option[TransactionType] = values.find(_.value == s)
-
   implicit val encodeTransactionType: Encoder[TransactionType] = Encoder.encodeString.contramap[TransactionType](_.value)
-  implicit val decodeTransactionType: Decoder[TransactionType] = Decoder.decodeString.emap { str =>
-    fromString(str).toRight(s"Invalid transaction type: $str")
-  }
 }
 
 case class InternalTransactionRequest(id: UUID, toAccountId: UUID, amount: Amount)

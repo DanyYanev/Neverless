@@ -6,6 +6,7 @@ import org.http4s.server.Router
 import transaction.controller.TransactionController
 import transaction.service.TransactionServiceImpl
 import transaction.storage.TransactionStorageImpl
+import utils.UUIDGeneratorImpl
 import withdrawal.java.WithdrawalServiceStub
 import withdrawal.scala.WithdrawalServiceImpl
 
@@ -15,7 +16,7 @@ object TransactionServer extends IOApp.Simple {
     val transactionStorage = new TransactionStorageImpl()
     val withdrawalService = new WithdrawalServiceImpl(new WithdrawalServiceStub())
 
-    val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage)
+    val transactionService = new TransactionServiceImpl(withdrawalService, accountStorage, transactionStorage, UUIDGeneratorImpl)
 
     val transactionController = new TransactionController(transactionService, java.time.Clock.systemUTC())
 
