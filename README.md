@@ -5,6 +5,7 @@ I've implemented the service in Scala (2.13.14) with sbt (1.10.0) & Java SDK 20
 Used standard Scala functional libraries like http4s, cats, circe etc.
 
 Postman collection with example requests is available in /docs/
+Wanted to include swagger route, but that would've required tapir some refactoring
 
 Some notes:
 
@@ -20,12 +21,14 @@ Some notes:
 5. The insides of the services aren't using IO, which in practice would be the case. Code wouldn't be much different.
 6. Amount class is Int for ease of use
 7. API Errors could be more descriptive, but left them as statuses for simplicity
+8. Java WithdrawalStub is wrapped in a scala class.
 
 If you have any questions or need more information, feel free to drop me an email :)
 
 Endpoints:
+`TransactionController.scala`
 
-```
+``` scala
     case req@POST -> Root / "accounts" / UUIDVar(accountId) / "transactions" / "internal" =>
       req.decode[InternalTransactionRequest](requestInternalTransaction(accountId, _))
 
