@@ -1,8 +1,8 @@
 package withdrawal.scala
 
 import core.{Address, Amount}
-import withdrawal.java.{WithdrawalService => JavaWithdrawalService}
 import withdrawal.java.WithdrawalService.{Address => JavaAddress, WithdrawalId => JavaWithdrawalId}
+import withdrawal.java.{WithdrawalService => JavaWithdrawalService}
 
 class WithdrawalServiceImpl(javaService: JavaWithdrawalService) extends WithdrawalService {
   def requestWithdrawal(id: WithdrawalId, address: Address, amount: Amount): Either[IdempotencyViolation, WithdrawalId] = {

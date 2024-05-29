@@ -392,7 +392,6 @@ class TransactionRecordServiceImplSpec extends AnyWordSpec with Matchers with Mo
 
         result mustBe Right(transactions.map(Transaction.from(_, TransactionStatus.Completed)))
       }
-
     }
   }
 

@@ -4,7 +4,7 @@ import account.AccountId
 import account.storage.{AccountNotFound, AccountStorageError}
 import core.{Address, Amount}
 import transaction.TransactionId
-import transaction.service.models.{Internal, Transaction}
+import transaction.service.models.Transaction
 import transaction.storage.TransactionStorageError
 
 import java.time.Instant

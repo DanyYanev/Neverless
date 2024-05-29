@@ -2,9 +2,9 @@ package transaction.controller.models
 
 import cats.effect.IO
 import core.Amount
-import io.circe.{Encoder, Json}
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import org.http4s.EntityDecoder
 import org.http4s.circe.jsonOf
 import transaction.TransactionStatus

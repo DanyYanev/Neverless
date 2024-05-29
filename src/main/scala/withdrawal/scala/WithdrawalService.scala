@@ -3,7 +3,6 @@ package withdrawal.scala
 import core.{Address, Amount}
 
 import java.util.UUID
-import withdrawal.java.WithdrawalService.{WithdrawalState => JavaWithdrawalState}
 
 case class WithdrawalId private(value: UUID) extends AnyVal
 

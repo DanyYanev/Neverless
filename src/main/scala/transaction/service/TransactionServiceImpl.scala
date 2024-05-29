@@ -35,18 +35,21 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
       record = InternalRecord(id, from.id, to.id, amount, timestamp)
       transactionId <- transactionStorage.createTransaction(record).left.map {
         case TransactionWithIdAlreadyExists(existingTransaction) =>
+          //Transaction has failed, return reserved amount to the account.
           returnReservedBalance(from, reservedAmount)
           if (existingTransaction == record)
             TransactionStorageFault(TransactionWithIdAlreadyExists(existingTransaction))
           else
+            //If the transaction is a different one, return IdempotencyViolation.
             IdempotencyViolation
       }
 
+      // We have successfully created the transaction, now we credit the receiving account.
       _ <- accountStorage.addBalance(to.id, reservedAmount).left.map(AccountStorageFault)
     } yield transactionId
 
     result match {
-      //Implementation of Idempotency
+      //If the above code failed with TransactionWithIdAlreadyExists, return the transaction id. (Idempotency)
       case Left(TransactionStorageFault(TransactionWithIdAlreadyExists(_))) => Right(id)
       case other => other
     }
@@ -69,13 +72,14 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
 
       transactionId <- transactionStorage.createTransaction(withdrawal).left.map {
         case TransactionWithIdAlreadyExists(existingWithdrawal) =>
+          //Transaction has failed, return reserved amount to the account.
           returnReservedBalance(account, reservedAmount)
           existingWithdrawal match {
-            case InternalRecord(_, _, _, _, _) => IdempotencyViolation
             case WithdrawalRecord(_, _, from, to, amount, _)
               if withdrawal.from == from &&
                 withdrawal.to == to &&
                 withdrawal.amount == amount =>
+              //If the transaction is the same, return the transaction id. (Idempotency)
               TransactionStorageFault(TransactionWithIdAlreadyExists(existingWithdrawal))
             case _ => IdempotencyViolation
           }
@@ -83,6 +87,8 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
 
       _ <- withdrawalService.requestWithdrawal(withdrawal.withdrawalId, withdrawal.to, withdrawal.amount).left.map {
         case WithdrawalIdempotencyViolation() =>
+          //The withdrawal service has failed to create the withdrawal, return the reserved amount to the account and revert the transaction.
+          //This shouldn't happen as withdrawalId is freshly generated, but this service can be unavailable in reality and then we would have to revert previous actions anyway.
           returnReservedBalance(account, reservedAmount)
           transactionStorage.deleteTransaction(transactionId)
           IdempotencyViolation
@@ -90,7 +96,7 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
     } yield transactionId
 
     result match {
-      //Implementation of Idempotency
+      //While trying to create a transaction, we found an identical transaction so we return the transaction id. (Idempotency)
       case Left(TransactionStorageFault(TransactionWithIdAlreadyExists(_))) => Right(id)
       case other => other
     }
@@ -119,6 +125,7 @@ class TransactionServiceImpl(withdrawalService: WithdrawalService, accountStorag
     }
   }
 
+  //So the code reads better.
   private def returnReservedBalance(account: Account, amount: Amount): Unit = {
     accountStorage.addBalance(account.id, amount)
   }

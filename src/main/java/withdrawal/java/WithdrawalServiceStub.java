@@ -7,9 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static withdrawal.java.WithdrawalService.WithdrawalState.COMPLETED;
-import static withdrawal.java.WithdrawalService.WithdrawalState.FAILED;
-import static withdrawal.java.WithdrawalService.WithdrawalState.PROCESSING;
+import static withdrawal.java.WithdrawalService.WithdrawalState.*;
 
 
 public class WithdrawalServiceStub implements WithdrawalService {

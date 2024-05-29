@@ -1,6 +1,5 @@
 package transaction
 
-import io.circe.{Encoder, Json}
 import withdrawal.scala.WithdrawalStatus
 
 sealed trait TransactionStatus {
