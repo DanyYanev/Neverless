@@ -2,10 +2,9 @@ package transaction.storage
 
 import account.AccountId
 import transaction.TransactionId
-import transaction.service.models.Transaction
 import transaction.storage.models.TransactionRecord
 
-//This abstraction is technically not needed, but in production its very common to have more than one error
+
 sealed trait TransactionStorageError
 
 case class TransactionWithIdAlreadyExists(existingTransaction: TransactionRecord) extends TransactionStorageError

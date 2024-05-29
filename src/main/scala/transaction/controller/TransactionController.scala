@@ -82,7 +82,6 @@ class TransactionController(transactionService: TransactionService, clock: Clock
 private object TransactionController {
   //This is where we do custom error formatting
   private def toCode(error: TransactionError): IO[Response[IO]] = {
-    Console.println("Error: " + error)
     val status = error match {
       case InsufficientFunds => Status.BadRequest
       case IdempotencyViolation => Status.Conflict
